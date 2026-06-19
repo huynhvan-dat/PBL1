@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run PBLApp",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "cmd /c \"chcp 65001 > nul && .\\PBLApp.exe\"",
+            "preLaunchTask": "C/C++: g++ build active file"
+        }
+    ]
+}
