@@ -11,7 +11,7 @@
                 "-Wall",
                 "-Wextra",
                 "-g",
-                "${workspaceFolder}/PBL.cpp",
+                "${workspaceFolder}/PBL.cpp", 
                 "-o",
                 "${workspaceFolder}/PBLApp.exe"
             ],

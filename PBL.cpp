@@ -224,7 +224,7 @@ static OrderItem parseOrderLine(const string& line) {
 
 // Ghi toàn bộ danh sách bàn đã đặt ra file.
 static void writeReservationsToFile(const string& filename, Table* tables, int totalTables) {
-    ofstream outFile(filename);
+    ofstream outFile(filename, ios::out | ios::trunc); 
     if (!outFile) return;
 
     for (int i = 0; i < totalTables; i++) {
@@ -248,9 +248,9 @@ static void writeReservationsToFile(const string& filename, Table* tables, int t
             outFile << "====================================\n\n";
         }
     }
+    outFile.flush(); 
     outFile.close();
 }
-
 
 // Lớp Person
 // Khởi tạo thông tin chung cho một người.
@@ -352,7 +352,7 @@ void HRManager::noEmployee() {
     staffList.push_back(new Employee("NV02", "Huỳnh Văn Đạt", "123456789", "Staff", 200000, 10));
     staffList.push_back(new Employee("NV03", "Lê Nguyễn Quốc Huy", "123456789", "Staff", 200000, 10));
     staffList.push_back(new Employee("NV04", "Lê Anh Khoa", "123456789", "Staff", 200000, 10));
-    staffList.push_back(new Employee("NV05", "Hà Huy AN", "123456789", "Staff", 200000, 10));
+    staffList.push_back(new Employee("NV05", "Hà Huy An", "123456789", "Staff", 200000, 10));
 }
 // Đọc danh sách nhân viên từ file employees.txt.
 void HRManager::loadEmployees() {
@@ -400,41 +400,44 @@ void HRManager::loadEmployees() {
 }
 // Lưu danh sách nhân viên hiện tại vào file.
 void HRManager::saveEmployees() {
-    ofstream outFile(EMP_FILE);
-    
-    // Xem file có thực sự mở được không
+    ofstream outFile(EMP_FILE, ios::out | ios::trunc);
     if (!outFile) {
-        cout << "[ERROR] Khong the mo file " << EMP_FILE << " de ghi dữ liệu! Kiếm tra lại quyền truy cập!\n";
+        cout << "[Lỗi] Khong the mo file " << EMP_FILE << " de ghi dữ liệu!\n";
         return;
     }
 
     for (auto emp : staffList) {
-        outFile << emp->toFileString() << endl;
+        outFile << emp->toFileString() << endl; 
     }
 
+    outFile.flush(); 
     outFile.close();
 }
 // Xuất bảng lương của nhân viên ra file báo cáo.
 void HRManager::exportPayroll() {
     ofstream outFile(PAYROLL_FILE);
     if (!outFile) {
-        cout << "[Loi] KHÔNG THỂ XUẤT FILE BÁO CÁO LƯƠNG!\n";
+        cout << "[Lỗi] KHÔNG THỂ XUẤT FILE BÁO CÁO LƯƠNG!\n";
         return;
     }
-    outFile << "========================================================\n";
-    outFile << "                 BẢNG LƯƠNG THANH TOÁN                  \n";
-    outFile << "========================================================\n";
-    outFile << left << setw(10) << "Mã NV" << setw(20) << "Tên Nhân Viên" 
-            << setw(10) << "Số ca" << setw(15) << "TỔNG LƯƠNG" << "\n";
-    outFile << "--------------------------------------------------------\n";
+    outFile << "====================================================================\n";
+    outFile << "                      BẢNG LƯƠNG THANH TOÁN                        \n";
+    outFile << "====================================================================\n";
+    outFile << left << setw(10) << "Mã NV" 
+            << setw(28) << "Tên Nhân Viên" 
+            << setw(10) << "Số ca" 
+            << "TỔNG LƯƠNG (VND)" << "\n";
+    outFile << "--------------------------------------------------------------------\n";
     
     for (auto emp : staffList) {
         outFile << left << setw(10) << emp->getID() 
-                << setw(20) << emp->getName() 
+                << setw(28) << emp->getName() 
                 << setw(10) << emp->getShifts() 
-                << fixed << setprecision(0) << emp->calculatePay() << "\n";
+                << right << setw(12) << fixed << setprecision(0) << emp->calculatePay() 
+                << "\n";
     }
-    outFile << "========================================================\n";
+    outFile << "====================================================================\n";
+    outFile.flush();
     outFile.close();
     cout << "=> Đã xuất file " << PAYROLL_FILE << " thành công!\n";
 }
@@ -477,6 +480,7 @@ void HRManager::addEmployee() {
     cout << "Lương cơ bản mỗi ca: "; cin >> salary;
 
     staffList.push_back(new Employee(id, name, phone, role, salary, 0));
+    saveEmployees(); 
     cout << "=> THÊM NHÂN VIÊN THÀNH CÔNG!\n";
 }
 // Xóa nhân viên khỏi danh sách theo mã nhân viên.
@@ -488,6 +492,7 @@ void HRManager::removeEmployee() {
         if ((*it)->getID() == id) {
             delete *it; // Xóa vùng nhớ động trước
             staffList.erase(it); // Xóa khỏi danh sách Vector
+            saveEmployees(); 
             cout << "=> ĐÃ XÓA NHÂN VIÊN NÀY KHỎI HỆ THỐNG!\n";
             return;
         }
@@ -781,84 +786,61 @@ void RestaurantManager::loadReservationsFromFile(const string& filename) {
 
     string line;
     int currentTableID = 0;
-    string currentName;
-    string currentPhone;
+    string currentName = "";
+    string currentPhone = "";
     DateTime currentDT;
     vector<OrderItem> currentOrders;
     bool inOrderSection = false;
 
-    auto commitReservation = [&]() {
-        if (currentTableID > 0 && currentTableID <= totalTables && !currentName.empty()) {
-            Customer newCust(currentName, currentPhone);
-            if (tables[currentTableID - 1].bookTable(&newCust, currentDT)) {
-                tables[currentTableID - 1].setOrderList(currentOrders);
-            }
-        }
-        currentTableID = 0;
-        currentName.clear();
-        currentPhone.clear();
-        currentOrders.clear();
-        currentDT = DateTime();
-        inOrderSection = false;
-    };
-
     while (getline(inFile, line)) {
-        line = trimString(line);
-        if (line.empty()) continue;
-
-        if (line.find("====================================") == 0) {
-            if (currentTableID != 0) {
-                commitReservation();
-            }
-            continue;
-        }
-
-        try {
-            if (line.rfind("BÀN SỐ:", 0) == 0) {
-                currentTableID = stoi(trimString(line.substr(7)));
-                continue;
-            }
-
-            if (line.rfind("TÊN KHÁCH:", 0) == 0) {
-                currentName = trimString(line.substr(10));
-                continue;
-            }
-
-            if (line.rfind("SDT:", 0) == 0) {
-                currentPhone = trimString(line.substr(4));
-                continue;
-            }
-
-            if (line.rfind("THỜI GIAN ĐẾN:", 0) == 0) {
-                string timeText = trimString(line.substr(14));
-                stringstream ss(timeText);
-                char sep;
-                ss >> currentDT.day >> sep >> currentDT.month >> sep >> currentDT.year >> currentDT.hour >> sep >> currentDT.minute;
-                continue;
-            }
-
-            if (line == "MÓN ĐÃ ĐẶT:") {
-                inOrderSection = true;
-                continue;
-            }
-
-            if (inOrderSection && line.rfind("- ", 0) == 0) {
-                OrderItem order = parseOrderLine(line);
-                if (order.quantity > 0) {
-                    currentOrders.push_back(order);
+        string trimmed = trimString(line);
+        if (trimmed.empty()) continue;
+        if (trimmed.find("====") != string::npos) {
+            if (currentTableID > 0 && currentTableID <= totalTables && !currentName.empty()) {
+                Customer newCust(currentName, currentPhone);
+                if (tables[currentTableID - 1].bookTable(&newCust, currentDT)) {
+                    tables[currentTableID - 1].setOrderList(currentOrders);
                 }
-                continue;
             }
-        } catch (const exception& e) {
-            // Nếu có lỗi parse, bỏ qua dòng đó và tiếp tục
+            currentTableID = 0; 
+            currentName = ""; 
+            currentPhone = "";
+            currentOrders.clear(); 
+            currentDT = DateTime(); 
+            inOrderSection = false;
             continue;
         }
+        size_t pos = trimmed.find(":");
+        string value = "";
+        if (pos != string::npos) {
+            value = trimString(trimmed.substr(pos + 1));
+        }
+        if (trimmed.find("BÀN SỐ:") != string::npos) {
+            try { currentTableID = stoi(value); } catch (...) { currentTableID = 0; }
+        } 
+        else if (trimmed.find("TÊN KHÁCH:") != string::npos) {
+            currentName = value;
+        } 
+        else if (trimmed.find("SDT:") != string::npos) {
+            currentPhone = value;
+        } 
+        else if (trimmed.find("THỜI GIAN ĐẾN:") != string::npos) {
+            stringstream ss(value);
+            char sep;
+            ss >> currentDT.day >> sep >> currentDT.month >> sep >> currentDT.year 
+               >> currentDT.hour >> sep >> currentDT.minute;
+        } 
+        else if (trimmed.find("MÓN ĐÃ ĐẶT:") != string::npos) {
+            inOrderSection = true;
+        } 
+        else if (inOrderSection && trimmed.find("- ") == 0) {
+            // Đọc món ăn đặt trước
+            OrderItem order = parseOrderLine(trimmed);
+            if (order.quantity > 0) {
+                currentOrders.push_back(order);
+            }
+        }
     }
-
-    if (currentTableID != 0) {
-        commitReservation();
-    }
-
     inFile.close();
 }
 // Hủy một đặt bàn theo ID bàn.
@@ -935,6 +917,9 @@ void RestaurantManager::checkoutTable() {
         }
         outFile << "Tổng tiền: " << fixed << setprecision(0) << total << " VND\n";
         outFile << "========================================\n\n";
+        
+        outFile.flush(); 
+        outFile.close();
     }
 
     table.freeTable();
@@ -1089,7 +1074,7 @@ void sendFeedback() {
         }
     } while (msg.empty());
 
-    ofstream outFile(FEEDBACK_FILE, ios::app); // Mở ở chế độ Append ghi nối đuôi
+    ofstream outFile(FEEDBACK_FILE, ios::app); 
     if (outFile) {
         outFile << "====================================\n";
         outFile << "Tên người đánh giá: " << customerName << "\n";
@@ -1097,6 +1082,7 @@ void sendFeedback() {
         outFile << "Số sao dịch vụ: " << rating << "/5\n";
         outFile << "Nhận xét: " << msg << "\n";
         outFile << "====================================\n\n";
+        outFile.flush(); 
         outFile.close();
         cout << "=> GỬI PHẢN HỒI THÀNH CÔNG. CẢM ƠN BẠN ĐÃ ĐÓNG GÓP Ý KIẾN CHO NHÀ HÀNG.\n";
     } else {
@@ -1187,7 +1173,7 @@ void customerInterface(RestaurantManager* res) {
         cout << "         CỔNG THÔNG TIN KHÁCH HÀNG       \n";
         cout << "=========================================\n";
         cout << "1. Xem sơ đồ vị trí bàn trống\n";
-        cout << "2. Quét dasnh sách sức chứa các bàn\n";
+        cout << "2. Quét danh sách sức chứa các bàn\n";
         cout << "3. Thực hiện Đặt bàn trực tuyến, chọn món trước và ngày giờ tới\n";
         cout << "4. Yêu cầu hủy đặt bàn (Bảo mật SĐT)\n";
         cout << "5. Gửi đánh giá dịch vụ & Feedback đóng góp\n";

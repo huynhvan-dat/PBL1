@@ -155,9 +155,9 @@ class Table {
 class RestaurantManager {
     private:
         int totalTables;
-        Table* tables;                  // Mảng động chứa danh sách các bàn ăn
-        int floorPlan[ROWS][COLS];      // Ma trận sơ đồ vị trí nhà hàng
-        static RestaurantManager* instance; // Thực thể tĩnh duy nhất của Singleton
+        Table* tables;                  
+        int floorPlan[ROWS][COLS];      
+        static RestaurantManager* instance; 
 
         // Đóng kín Constructor để ngăn chặn việc tạo đối tượng tự do bên ngoài
         RestaurantManager(int numTables);

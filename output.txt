@@ -1,3 +1,3 @@
 Kiem tra ghi file thanh cong.
 File nhan vien dang dung: employees.txt
-File dat ban dang dung: data.txt
+File dat ban dang dung: datban.txt

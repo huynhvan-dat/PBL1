@@ -13,7 +13,7 @@ int main() {
 
     fileOut << "Kiem tra ghi file thanh cong.\n";
     fileOut << "File nhan vien dang dung: " << EMP_FILE << '\n';
-    fileOut << "File dat ban dang dung: " << DATA_FILE << '\n';
+    fileOut << "File dat ban dang dung: " << RESERVATION_FILE << '\n';
 
     std::cout << "Xuat file thanh cong!\n";
     return 0;
