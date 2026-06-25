@@ -77,7 +77,7 @@ static DateTime inputDateTime() {
                 if (!isPastDate) break;
             }
         }
-        cout << "[Lỗi] Ngày không hợp lệ. Ví dụ đúng: 02/03/2027\n";
+        cout << "[Lỗi] Ngày không hợp lệ. Ví dụ đúng: 02/03/2027 hoặc 02 03 2027\n";
     }
 
     while (true) {
@@ -103,7 +103,7 @@ static DateTime inputDateTime() {
             }
             break;
         }
-        cout << "[Lỗi] Giờ không hợp lệ. Ví dụ đúng: 19:30\n";
+        cout << "[Lỗi] Giờ không hợp lệ. Ví dụ đúng: 19:30 hoặc 19 30\n";
     }
 
     return dt;
@@ -262,7 +262,7 @@ static void writeReservationsToFile(const string& filename, Table* tables, int t
             const DateTime& dt = tables[i].getBookTime();
             outFile << "====================================\n";
             outFile << "BÀN SỐ: " << tables[i].getTableID() << "\n";
-            outFile << "TÊN KHÁCH: " << tables[i].getCustomer()->getName() << "\n";
+            outFile << "TÊN KHÁCH HÀNG: " << tables[i].getCustomer()->getName() << "\n";
             outFile << "SDT: " << tables[i].getCustomer()->getPhone() << "\n";
             outFile << "THỜI GIAN ĐẾN: "
                     << dt.day << "/" << dt.month << "/" << dt.year
@@ -542,7 +542,11 @@ void HRManager::manageSalaryAndShifts() {
             cout << "1. Điểm danh ca làm\n" 
             << "2. Cập nhật mức lương\n"
             << "Nhập lựa chọn của bạn: "; 
-            cin >> opt;
+            while (!(cin >> opt)) {
+                cout << "[Lỗi] Vui lòng nhập số 1 hoặc 2: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            }
             if (opt == 1) {
                 emp->addShift();
                 cout << "=> Ghi nhân ca làm việc thành công!\n";
@@ -732,7 +736,12 @@ void RestaurantManager::addReservation() {
         << "- [ X ] = Bàn đã đặt\n"
         << "- [   ] = Lối đi\n";
 
-    cout << "Nhập ID bàn: "; cin >> tableID;
+    cout << "Nhập ID bàn: "; 
+    while (!(cin >> tableID)) {
+        cout << "[Lỗi] ID bàn phải là số. Nhập lại: ";
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
     if (tableID < 1 || tableID > totalTables || tables[tableID - 1].getStatus()) {
         cout << "[Lỗi] Không hợp lệ hoặc bàn đã bị đặt!\n"; return;
     }
@@ -777,7 +786,11 @@ void RestaurantManager::addOnlineReservation() {
         << "- [   ] = Lối đi\n";
 
     cout << "Nhập ID bàn muốn đặt: ";
-    cin >> tableID;
+    while (!(cin >> tableID)) {
+        cout << "[Lỗi] ID bàn phải là số. Nhập lại: ";
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
     if (tableID < 1 || tableID > totalTables || tables[tableID - 1].getStatus()) {
         cout << "[Lỗi] Không hợp lệ hoặc bàn đã bị đặt!\n";
         return;
@@ -860,7 +873,7 @@ void RestaurantManager::loadReservationsFromFile(const string& filename) {
         else if (trimmed.find("TÊN KHÁCH HÀNG:") != string::npos) {
             currentName = value;
         } 
-        else if (trimmed.find("SỐ ĐIỆN THOẠI:") != string::npos) {
+        else if (trimmed.find("SDT:") != string::npos) {
             currentPhone = value;
         } 
         else if (trimmed.find("THỜI GIAN ĐẾN:") != string::npos) {
@@ -887,7 +900,12 @@ void RestaurantManager::deleteReservation() {
     int tableID;
     cout << "\n--- HỦY ĐẶT BÀN ---" << endl;
     displayFloorPlan();
-    cout << "Nhập ID bàn cần hủy: "; cin >> tableID;
+    cout << "Nhập ID bàn cần hủy: "; 
+    while (!(cin >> tableID)) {
+        cout << "[Lỗi] ID bàn phải là số. Nhập lại: ";
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
     if (tableID < 1 || tableID > totalTables || !tables[tableID - 1].getStatus()) {
         cout << "[Lỗi] ID không hợp lệ hoặc bàn đang trống!\n"; return;
     }
@@ -901,7 +919,11 @@ void RestaurantManager::checkoutTable() {
     cout << "\n--- XUẤT HÓA ĐƠN ---" << endl;
     displayFloorPlan();
     cout << "Nhập ID bàn cần xuất hóa đơn: ";
-    cin >> tableID;
+    while (!(cin >> tableID)) {
+        cout << "[Lỗi] ID bàn phải là số. Nhập lại: ";
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    }
 
     if (tableID < 1 || tableID > totalTables || !tables[tableID - 1].getStatus()) {
         cout << "[Lỗi] ID không hợp lệ hoặc bàn đang trống!\n";
@@ -1153,7 +1175,12 @@ void managerInterface(RestaurantManager* res, HRManager& hr) {
         cout << "12. Xuất hóa đơn cho bàn\n";
         cout << "0. Đăng xuất tài khoản Quản lý\n";
         cout << "=========================================\n";
-        cout << "Nhập lựa chọn của bạn: "; cin >> choice;
+        cout << "Nhập lựa chọn của bạn: "; 
+        while (!(cin >> choice)) {
+            cout << "[Lỗi] Lựa chọn phải là số. Nhập lại: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
 
         switch(choice) {
             case 1: res->displayFloorPlan(); break;
@@ -1189,7 +1216,12 @@ void employeeInterface(RestaurantManager* res) {
         cout << "6. Hủy đặt bàn theo yêu cầu khách\n";
         cout << "0. Đăng xuất tài khoản nhân viên\n";
         cout << "=========================================\n";
-        cout << "Nhập lựa chọn của bạn: "; cin >> choice;
+        cout << "Nhập lựa chọn của bạn: "; 
+        while (!(cin >> choice)) {
+            cout << "[Lỗi] Lựa chọn phải là số. Nhập lại: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
 
         switch(choice) {
             case 1: res->displayFloorPlan(); break;
@@ -1218,7 +1250,12 @@ void customerInterface(RestaurantManager* res) {
         cout << "5. Gửi đánh giá dịch vụ & Feedback đóng góp\n";
         cout << "0. Quay lại màn hình chính Gateway\n";
         cout << "=========================================\n";
-        cout << "Nhập lựa chọn của bạn: "; cin >> choice;
+        cout << "Nhập lựa chọn của bạn: "; 
+        while (!(cin >> choice)) {
+            cout << "[Lỗi] Lựa chọn phải là số. Nhập lại: ";    
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
 
         switch(choice) {
             case 1: res->displayFloorPlan(); break;
@@ -1252,8 +1289,12 @@ int main() {
         cout << "3. Khách hàng (Customer)\n";
         cout << "0. Tắt hệ thống dữ liệu nhà hàng\n";
         cout << "=======================================================\n";
-        cout << "Nhập vai trò của bạn: "; cin >> accessRole;
-
+        cout << "Nhập vai trò của bạn: ";
+        while (!(cin >> accessRole)) {
+            cout << "[Lỗi] Vui lòng nhập số (1, 2, 3 hoặc 0): ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
         if (accessRole == 1) {
             string token;
             cout << "Yêu cầu nhập mã tài khoản quản lý (VD: NV01): "; cin >> token;
