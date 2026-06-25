@@ -14,16 +14,16 @@ RestaurantManager* RestaurantManager::instance = nullptr;
 
 // Menu đồ ăn và đặt món
 static const vector<MenuItem> RESTAURANT_MENU = {
-    {1, "Nộm đu đủ bò khô (Món khai vị)" , 50000},
-    {2, "Cơm gà xối mỡ", 65000},
-    {3, "Lẩu hải sản", 220000},
-    {4, "Salad cá ngừ", 75000},
-    {5, "Hàu nướng mỡ hành", 80000},
-    {6, "Tôm sú nướng", 75000},
-    {7, "Lẩu thái", 200000},
-    {8, "Trà tắc", 10000},
-    {9, "Trà đào", 10000},
-    {10, "Đĩa trái cây", 30000}
+    {1, "Nom du du bo kho" , 50000},
+    {2, "Com ga xoi mo", 65000},
+    {3, "Lau hai san", 220000},
+    {4, "Salad ca ngu", 75000},
+    {5, "Hau nuong mo hanh", 80000},
+    {6, "Tom su nuong", 75000},
+    {7, "Lau thai", 200000},
+    {8, "Tra tac", 10000},
+    {9, "Tra dao", 10000},
+    {10, "Dia trai cay", 30000}
 };
 
 // Xóa phần nhập còn thừa trong bộ đệm, tránh bị trôi getline().
@@ -43,10 +43,17 @@ static string getCurrentDate() {
 // Nhập ngày giờ khách sẽ đến và kiểm tra định dạng cơ bản.
 static DateTime inputDateTime() {
     DateTime dt;
+    time_t t = time(nullptr);
+    tm* now = localtime(&t);
+    int curDay = now->tm_mday;
+    int curMonth = now->tm_mon + 1;      
+    int curYear = now->tm_year + 1900;   
+    int curHour = now->tm_hour;
+    int curMin = now->tm_min;
 
     while (true) {
         string dateInput;
-        cout << "Nhập ngày sẽ tới (dd/mm/yy hoặc dd mm yy): ";
+        cout << "Nhập ngày sẽ tới (dd/mm/yyyy hoặc dd mm yyyy): ";
         getline(cin, dateInput);
 
         for (char& ch : dateInput) {
@@ -54,13 +61,22 @@ static DateTime inputDateTime() {
         }
 
         stringstream ss(dateInput);
-        if (ss >> dt.day >> dt.month >> dt.year &&
-            dt.day >= 1 && dt.day <= 31 &&
-            dt.month >= 1 && dt.month <= 12 &&
-            dt.year >= 2026) {
-            break;
-        }
+        if (ss >> dt.day >> dt.month >> dt.year) {
+            // Kiểm tra định dạng cơ bản
+            bool basicValid = (dt.day >= 1 && dt.day <= 31 && dt.month >= 1 && dt.month <= 12 && dt.year >= curYear);
+            
+            if (basicValid) {
+                // Kiểm tra xem ngày nhập có bị quá khứ so với ngày hiện tại không
+                bool isPastDate = false;
+                if (dt.year < curYear) isPastDate = true;
+                else if (dt.year == curYear) {
+                    if (dt.month < curMonth) isPastDate = true;
+                    else if (dt.month == curMonth && dt.day < curDay) isPastDate = true;
+                }
 
+                if (!isPastDate) break;
+            }
+        }
         cout << "[Lỗi] Ngày không hợp lệ. Ví dụ đúng: 02/03/2027\n";
     }
 
@@ -74,12 +90,19 @@ static DateTime inputDateTime() {
         }
 
         stringstream ss(timeInput);
-        if (ss >> dt.hour >> dt.minute &&
-            dt.hour >= 0 && dt.hour <= 23 &&
-            dt.minute >= 0 && dt.minute <= 59) {
+        if (ss >> dt.hour >> dt.minute && dt.hour >= 0 && dt.hour <= 23 && dt.minute >= 0 && dt.minute <= 59) {
+            
+            // Nếu khách đặt đúng ngày hôm nay, thì giờ phải lớn hơn giờ hiện tại
+            if (dt.year == curYear && dt.month == curMonth && dt.day == curDay) {
+                if (dt.hour < curHour || (dt.hour == curHour && dt.minute <= curMin)) {
+                    cout << "[Lỗi] Bạn đang đặt ngày hôm nay, vui lòng chọn giờ muộn hơn hiện tại (" 
+                         << (curHour < 10 ? "0" : "") << curHour << ":" 
+                         << (curMin < 10 ? "0" : "") << curMin << ")\n";
+                    continue;
+                }
+            }
             break;
         }
-
         cout << "[Lỗi] Giờ không hợp lệ. Ví dụ đúng: 19:30\n";
     }
 
@@ -88,15 +111,16 @@ static DateTime inputDateTime() {
 
 // In danh sách món ăn để khách chọn món đặt trước.
 static void displayMenuItems() {
-    cout << "\n--- MENU MÓN ĂN ---\n";
+    cout << "\n============== MENU MÓN ĂN ==============\n";
     cout << left << setw(5) << "ID"
-         << setw(25) << "Tên món"
-         << setw(12) << "Giá" << endl;
-    cout << "------------------------------------------\n";
+         << setw(25) << "|  Tên món"
+         << setw(8) << "|  Giá" << endl;
+    cout << "-----------------------------------------\n";
     for (const auto& item : RESTAURANT_MENU) {
-        cout << left << setw(5) << item.id
-             << setw(25) << item.name
-             << fixed << setprecision(0) << item.price << " VND\n";
+        cout << left << setw(7) << item.id
+             << setw(22) << item.name
+             << fixed << setprecision(0) << item.price << " VND" 
+             << endl;
     }
 }
 
@@ -150,16 +174,22 @@ static vector<OrderItem> inputOrderList() {
         }
 
         int quantity;
-        cout << "Nhập số lượng cho \"" << menuItem->name << "\": ";
+        cout << "Nhập số lượng cho \"" << menuItem->name << "\" (0 để hủy món): ";
         while (!(cin >> quantity)) {
             cout << "[Lỗi] Vui lòng nhập một số nguyên. Nhập lại: ";
             cin.clear();
             cin.ignore(numeric_limits<streamsize>::max(), '\n');
         }
         
-        if (quantity <= 0) {
+        if (quantity == 0) {
+            cout << "=> Đã hủy chọn món \"" << menuItem->name << "\".\n";
+            cout << "Nhập ID món tiếp theo (0 để kết thúc): ";
+            continue;
+        }
+        else if (quantity < 0) {
             cout << "[Lỗi] Số lượng phải lớn hơn 0.\n";
-        } else {
+        }
+        else {
             bool existed = false;
             for (auto& order : orders) {
                 if (order.item.id == menuItem->id) {
@@ -314,8 +344,8 @@ double Employee::calculatePay() const {
 }
 // In thông tin nhân viên ra màn hình.
 void Employee::displayEmployee() const {
-    cout << left << setw(10) << empID << setw(20) << name 
-        << setw(15) << role << setw(15) << fixed << setprecision(0) << baseSalary 
+    cout << left << setw(9) << empID << setw(22) << name 
+        << setw(15) << role << setw(13) << fixed << setprecision(0) << baseSalary 
         << setw(10) << shifts << endl;
 }
 // Chuyển thông tin nhân viên thành một dòng để lưu file.
@@ -348,11 +378,11 @@ string HRManager::trim(const string& str) {
 // Tạo danh sách nhân viên mẫu khi chưa có file dữ liệu.
 void HRManager::noEmployee() {
     // Nap mảng mac dinh theo yeu cau (Ma NV, Ten, SDT, Vai tro, Luong/ca, So ca mac dinh)
-    staffList.push_back(new Employee("NV01", "Ngô Nguyên Khang", "123456789", "Manager", 500000, 10));
-    staffList.push_back(new Employee("NV02", "Huỳnh Văn Đạt", "123456789", "Staff", 200000, 10));
-    staffList.push_back(new Employee("NV03", "Lê Nguyễn Quốc Huy", "123456789", "Staff", 200000, 10));
-    staffList.push_back(new Employee("NV04", "Lê Anh Khoa", "123456789", "Staff", 200000, 10));
-    staffList.push_back(new Employee("NV05", "Hà Huy An", "123456789", "Staff", 200000, 10));
+    staffList.push_back(new Employee("NV01", "Ngo Nguyen Khang", "123456789", "Manager", 500000, 10));
+    staffList.push_back(new Employee("NV02", "Huynh Van Dat", "123456789", "Staff", 200000, 10));
+    staffList.push_back(new Employee("NV03", "Le Nguyen Quoc Huy", "123456789", "Staff", 200000, 10));
+    staffList.push_back(new Employee("NV04", "Le Anh Khoa", "123456789", "Staff", 200000, 10));
+    staffList.push_back(new Employee("NV05", "Ha Huy An", "123456789", "Staff", 200000, 10));
 }
 // Đọc danh sách nhân viên từ file employees.txt.
 void HRManager::loadEmployees() {
@@ -360,11 +390,11 @@ void HRManager::loadEmployees() {
     
     // TRƯỜNG HỢP 1: File chưa từng tồn tại (Lần đầu chạy ứng dụng)
     if (!inFile) {
-        cout << "[He thong] Khoi tao co so du lieu nhan su mac dinh ban dau...\n";
+        cout << "[Hệ thống] Khởi tạo cơ sở dữ liệu nhân sự mặc định...\n";
         // Tạo dữ liệu mẫu mặc định
         noEmployee();
         
-        // Tu dong tao file va luu lai ngay lap tuc
+        // Tự động tạo file và lưu lại ngay lập tức
         saveEmployees();
         return;
     }
@@ -393,7 +423,7 @@ void HRManager::loadEmployees() {
 
     // TRƯỜNG HỢP 2: File ton tai nhung ai do da xoa het chuoi (File trong rong)
     if (staffList.empty()) {
-        cout << "[He thong] File du lieu trong. Tu dong nap lai danh sach goc...\n";
+        cout << "[Hệ thống] Dữ lệu trống. Tự động nạp lại dữ liệu mặc định...\n";
         noEmployee();
         saveEmployees();
     }
@@ -402,49 +432,48 @@ void HRManager::loadEmployees() {
 void HRManager::saveEmployees() {
     ofstream outFile(EMP_FILE, ios::out | ios::trunc);
     if (!outFile) {
-        cout << "[Lỗi] Khong the mo file " << EMP_FILE << " de ghi dữ liệu!\n";
+        cout << "[Lỗi] Không thể mở file " << EMP_FILE << " để ghi dữ liệu!\n";
         return;
     }
 
     for (auto emp : staffList) {
-        outFile << emp->toFileString() << endl; 
+        outFile << emp->toFileString() << endl; // endl đã bao gồm lệnh flush
     }
 
     outFile.flush(); 
     outFile.close();
 }
+
 // Xuất bảng lương của nhân viên ra file báo cáo.
 void HRManager::exportPayroll() {
     ofstream outFile(PAYROLL_FILE);
     if (!outFile) {
-        cout << "[Lỗi] KHÔNG THỂ XUẤT FILE BÁO CÁO LƯƠNG!\n";
+        cout << "[Lỗi] Không thể xuất file báo cáo lương!\n";
         return;
     }
-    outFile << "====================================================================\n";
-    outFile << "                      BẢNG LƯƠNG THANH TOÁN                        \n";
-    outFile << "====================================================================\n";
-    outFile << left << setw(10) << "Mã NV" 
-            << setw(28) << "Tên Nhân Viên" 
-            << setw(10) << "Số ca" 
-            << "TỔNG LƯƠNG (VND)" << "\n";
-    outFile << "--------------------------------------------------------------------\n";
+    outFile << "========================================================\n";
+    outFile << "                 BẢNG LƯƠNG THANH TOÁN                  \n";
+    outFile << "========================================================\n";
+    outFile << left << setw(10) << "Mã NV" << setw(25) << "Tên Nhân Viên" 
+            << setw(10) << "Số ca" << setw(15) << "TỔNG LƯƠNG" << "\n";
+    outFile << "--------------------------------------------------------\n";
     
     for (auto emp : staffList) {
-        outFile << left << setw(10) << emp->getID() 
-                << setw(28) << emp->getName() 
-                << setw(10) << emp->getShifts() 
-                << right << setw(12) << fixed << setprecision(0) << emp->calculatePay() 
-                << "\n";
+        outFile << left << setw(8) << emp->getID() 
+                << setw(25) << emp->getName() 
+                << setw(8) << emp->getShifts() 
+                << fixed << setprecision(0) << emp->calculatePay() << "\n";
     }
-    outFile << "====================================================================\n";
-    outFile.flush();
+    outFile << "========================================================\n";
+    
+    outFile.flush(); // Đảm bảo bảng lương được ghi xong
     outFile.close();
     cout << "=> Đã xuất file " << PAYROLL_FILE << " thành công!\n";
 }
 // Hiển thị toàn bộ nhân viên trong nhà hàng.
 void HRManager::displayAllStaff() {
     cout << "\n-------------------------------------------------------------\n";
-    cout << left << setw(10) << "Mã NV" << setw(20) << "Tên Nhân Viên" 
+    cout << left << setw(10) << "Mã NV" << setw(25) << "Tên Nhân Viên" 
         << setw(15) << "Vai Trò" << setw(15) << "Lương/Ca" << setw(10) << "Số ca\n";
     cout << "-------------------------------------------------------------\n";
     for (auto emp : staffList) emp->displayEmployee();
@@ -497,18 +526,22 @@ void HRManager::removeEmployee() {
             return;
         }
     }
-    cout << "[Lỗi] KHÔNG TÌM THẤY NHÂN VIÊN HỢP LỆ!\n";
+    cout << "[Lỗi] Không tìm thấy nhân viên có mã " << id << "!\n";
 }
 // Điểm danh thêm ca làm hoặc cập nhật lương nhân viên.
 void HRManager::manageSalaryAndShifts() {
     string id;
     int opt;
     cout << "\n--- ĐIỀU CHỈNH LƯƠNG/CÔNG NHÂN VIÊN ---\n";
-    cout << "Nhập Mã NV: "; cin >> id;
+    cout << "Nhập Mã NV (0 để quay lại): "; cin >> id;
+    if (id == "0") return;
+    
     for (auto emp : staffList) {
         if (emp->getID() == id) {
             cout << "Tên nhân viên: "; cout << emp->getName() << endl;
-            cout << "1. ĐIỂM DANH TĂNG 1 CA LÀM (Check-in)\n2. CẬP NHẬP MỨC LƯƠNG CỨNG\nChon: "; 
+            cout << "1. Điểm danh ca làm\n" 
+            << "2. Cập nhật mức lương\n"
+            << "Nhập lựa chọn của bạn: "; 
             cin >> opt;
             if (opt == 1) {
                 emp->addShift();
@@ -517,7 +550,7 @@ void HRManager::manageSalaryAndShifts() {
                 double newSal;
                 cout << "Nhập mức lương mới: "; cin >> newSal;
                 emp->updateSalary(newSal);
-                cout << "=> Cập nhập mức lương mới cho nhân viên thành công!\n";
+                cout << "=> Cập nhật mức lương mới cho nhân viên thành công!\n";
             }
             
             exportPayroll();
@@ -670,7 +703,7 @@ RestaurantManager::~RestaurantManager() {
 }
 // In sơ đồ bàn: bàn trống, bàn đã đặt và lối đi.
 void RestaurantManager::displayFloorPlan() {
-    cout << "\n=== SƠ ĐỒ NHÀ HÀNG ===\n";
+    cout << "\n======== SƠ ĐỒ NHÀ HÀNG ========\n";
     for (int i = 0; i < ROWS; i++) {
         for (int j = 0; j < COLS; j++) {
             if (floorPlan[i][j] == 0) cout << "[   ] ";
@@ -685,7 +718,7 @@ void RestaurantManager::displayFloorPlan() {
 }
 // In thông tin trạng thái của tất cả bàn.
 void RestaurantManager::displayAllTables() {
-    cout << "\n=== DANH SÁCH TẤT CẢ CÁC BÀN ===\n";
+    cout << "\n======= DANH SÁCH TẤT CẢ CÁC BÀN =======\n";
     for (int i = 0; i < totalTables; i++) tables[i].displayTable();
 }
 // Nhân viên hoặc quản lý đặt bàn trực tiếp cho khách.
@@ -696,16 +729,16 @@ void RestaurantManager::addReservation() {
     displayFloorPlan();
     cout << "\nChú thích:\n"
         << "- [ ID ] = Bàn trống\n"
-        << "- [ X  ] = Bàn đã đặt\n"
-        << "- [    ] = Lối đi\n";
+        << "- [ X ] = Bàn đã đặt\n"
+        << "- [   ] = Lối đi\n";
 
     cout << "Nhập ID bàn: "; cin >> tableID;
     if (tableID < 1 || tableID > totalTables || tables[tableID - 1].getStatus()) {
-        cout << "Không hợp lệ hoặc bàn đã bị đặt!\n"; return;
+        cout << "[Lỗi] Không hợp lệ hoặc bàn đã bị đặt!\n"; return;
     }
     cin.ignore();
-    cout << "Tên: "; getline(cin, name);
-    cout << "SDT: "; getline(cin, phone);
+    cout << "Tên khách hàng: "; getline(cin, name);
+    cout << "Số điện thoại: "; getline(cin, phone);
 
     DateTime dt = inputDateTime();
 
@@ -740,20 +773,20 @@ void RestaurantManager::addOnlineReservation() {
     displayFloorPlan();
     cout << "\nChú thích:\n"
         << "- [ id ] = Bàn trống\n"
-        << "- [ X  ] = Bàn đã đặt\n"
-        << "- [    ] = Lối đi\n";
+        << "- [ X ] = Bàn đã đặt\n"
+        << "- [   ] = Lối đi\n";
 
     cout << "Nhập ID bàn muốn đặt: ";
     cin >> tableID;
     if (tableID < 1 || tableID > totalTables || tables[tableID - 1].getStatus()) {
-        cout << "Không hợp lệ hoặc bàn đã bị đặt!\n";
+        cout << "[Lỗi] Không hợp lệ hoặc bàn đã bị đặt!\n";
         return;
     }
 
     clearInputLine();
-    cout << "TÊN KHÁCH HÀNG : ";
+    cout << "Tên khách hàng: ";
     getline(cin, name);
-    cout << "SỐ ĐIỆN THOẠI : ";
+    cout << "Số điện thoại: ";
     getline(cin, phone);
 
     vector<OrderItem> orders = inputOrderList();
@@ -763,8 +796,8 @@ void RestaurantManager::addOnlineReservation() {
     if (tables[tableID - 1].bookTable(&newCust, dt)) {
         tables[tableID - 1].setOrderList(orders);
         exportReservationToFile(tableID);
-        cout << "=> ĐẶT BÀN THÀNH CÔNG ! THÔNG TIN CỦA BẠN ĐÃ ĐƯỢC LƯU VÀO ! "
-             << RESERVATION_FILE << "\n";
+        cout << "=> ĐẶT BÀN THÀNH CÔNG! THÔNG TIN CỦA BẠN ĐÃ ĐƯỢC LƯU VÀO " << RESERVATION_FILE << "!\n"
+             << "XIN CẢM ƠN ĐÃ SỬ DUNG DỊCH VỤ CỦA NHÀ HÀNG CHÚNG TÔI!\n";
     }
 }
 
@@ -795,6 +828,8 @@ void RestaurantManager::loadReservationsFromFile(const string& filename) {
     while (getline(inFile, line)) {
         string trimmed = trimString(line);
         if (trimmed.empty()) continue;
+
+        // Nếu gặp dòng kẻ ngang "====", nghĩa là kết thúc một bàn, tiến hành nạp vào hệ thống
         if (trimmed.find("====") != string::npos) {
             if (currentTableID > 0 && currentTableID <= totalTables && !currentName.empty()) {
                 Customer newCust(currentName, currentPhone);
@@ -810,18 +845,22 @@ void RestaurantManager::loadReservationsFromFile(const string& filename) {
             inOrderSection = false;
             continue;
         }
+
+        // Tìm vị trí dấu hai chấm để lấy giá trị đằng sau
         size_t pos = trimmed.find(":");
         string value = "";
         if (pos != string::npos) {
             value = trimString(trimmed.substr(pos + 1));
         }
+
+        // Kiểm tra xem dòng đó chứa thông tin gì
         if (trimmed.find("BÀN SỐ:") != string::npos) {
             try { currentTableID = stoi(value); } catch (...) { currentTableID = 0; }
         } 
-        else if (trimmed.find("TÊN KHÁCH:") != string::npos) {
+        else if (trimmed.find("TÊN KHÁCH HÀNG:") != string::npos) {
             currentName = value;
         } 
-        else if (trimmed.find("SDT:") != string::npos) {
+        else if (trimmed.find("SỐ ĐIỆN THOẠI:") != string::npos) {
             currentPhone = value;
         } 
         else if (trimmed.find("THỜI GIAN ĐẾN:") != string::npos) {
@@ -850,7 +889,7 @@ void RestaurantManager::deleteReservation() {
     displayFloorPlan();
     cout << "Nhập ID bàn cần hủy: "; cin >> tableID;
     if (tableID < 1 || tableID > totalTables || !tables[tableID - 1].getStatus()) {
-        cout << "ID không hợp lệ hoặc bàn đang trống!\n"; return;
+        cout << "[Lỗi] ID không hợp lệ hoặc bàn đang trống!\n"; return;
     }
     tables[tableID - 1].freeTable();
     saveReservationsToFile(RESERVATION_FILE);
@@ -859,13 +898,13 @@ void RestaurantManager::deleteReservation() {
 // Xuất hóa đơn, lưu vào file hoadon.txt rồi giải phóng bàn.
 void RestaurantManager::checkoutTable() {
     int tableID;
-    cout << "\n--- THANH TOÁN / XUẤT HÓA ĐƠN ---" << endl;
+    cout << "\n--- XUẤT HÓA ĐƠN ---" << endl;
     displayFloorPlan();
-    cout << "Nhập ID bàn cần thanh toán: ";
+    cout << "Nhập ID bàn cần xuất hóa đơn: ";
     cin >> tableID;
 
     if (tableID < 1 || tableID > totalTables || !tables[tableID - 1].getStatus()) {
-        cout << "ID không hợp lệ hoặc bàn đang trống!\n";
+        cout << "[Lỗi] ID không hợp lệ hoặc bàn đang trống!\n";
         return;
     }
 
@@ -877,8 +916,8 @@ void RestaurantManager::checkoutTable() {
     cout << "\n========== HÓA ĐƠN THANH TOÁN ==========\n";
     cout << "Bàn số: " << table.getTableID() << "\n";
     if (customer != nullptr) {
-        cout << "Tên khách: " << customer->getName() << "\n";
-        cout << "SĐT: " << customer->getPhone() << "\n";
+        cout << "Tên khách hàng: " << customer->getName() << "\n";
+        cout << "Số điện thoại: " << customer->getPhone() << "\n";
     }
     cout << "----------------------------------------\n";
     if (orders.empty()) {
@@ -901,8 +940,8 @@ void RestaurantManager::checkoutTable() {
         outFile << "========== HÓA ĐƠN THANH TOÁN ==========\n";
         outFile << "Bàn số: " << table.getTableID() << "\n";
         if (customer != nullptr) {
-            outFile << "Tên khách: " << customer->getName() << "\n";
-            outFile << "SĐT: " << customer->getPhone() << "\n";
+            outFile << "Tên khách hàng: " << customer->getName() << "\n";
+            outFile << "Số điện thoại: " << customer->getPhone() << "\n";
         }
         outFile << "Danh sách món:\n";
         if (orders.empty()) {
@@ -945,7 +984,7 @@ void RestaurantManager::customerDeleteReservation() {
     }
 
     if (matches.empty()) {
-        cout << "[Lỗi] Không tìm thấy đặt bàn nào với SĐT này.\n";
+        cout << "[Lỗi] Không tìm thấy bàn nào khớp với SĐT này.\n";
         return;
     }
 
@@ -954,7 +993,7 @@ void RestaurantManager::customerDeleteReservation() {
         cout << "Tìm thấy " << matches.size() << " đặt bàn với số điện thoại này:\n";
         for (int idx : matches) {
             cout << "- Bàn " << tables[idx].getTableID()
-                 << " | Khách: " << tables[idx].getCustomer()->getName()
+                 << " | Khách hàng: " << tables[idx].getCustomer()->getName()
                  << " | Thời gian: " << tables[idx].getBookTime().day << "/"
                  << tables[idx].getBookTime().month << "/"
                  << tables[idx].getBookTime().year << " "
@@ -984,7 +1023,7 @@ void RestaurantManager::customerDeleteReservation() {
     }
 
     cout << "Xác nhận hủy đặt bàn Bàn " << tables[selectedIndex].getTableID()
-         << " cho khách " << tables[selectedIndex].getCustomer()->getName()
+         << " cho khách hàng " << tables[selectedIndex].getCustomer()->getName()
          << "? (y/n): ";
     char confirm;
     cin >> confirm;
@@ -1004,12 +1043,12 @@ void RestaurantManager::editReservation() {
     displayFloorPlan();
     cout << "Nhập ID bàn: "; cin >> tableID;
     if (tableID < 1 || tableID > totalTables || !tables[tableID - 1].getStatus()) {
-        cout << "ID không hợp lệ hoặc bàn đang trống!\n"; return;
+        cout << "[Lỗi] ID không hợp lệ hoặc bàn đang trống!\n"; return;
     }
     string newName, newPhone;
     cin.ignore();
-    cout << "Tên:"; getline(cin, newName);
-    cout << "SDT: "; getline(cin, newPhone);
+    cout << "Tên khách hàng: "; getline(cin, newName);
+    cout << "Số điện thoại: "; getline(cin, newPhone);
     tables[tableID - 1].getCustomer()->updateInfo(newName, newPhone);
 
     const vector<OrderItem>& currentOrders = tables[tableID - 1].getOrderList();
@@ -1098,7 +1137,7 @@ void managerInterface(RestaurantManager* res, HRManager& hr) {
     int choice;
     do {
         cout << "\n=========================================\n";
-        cout << "        MENU ĐIỀU HÀNH - QUẢN LÝ (MANAGER) \n";
+        cout << "    MENU ĐIỀU HÀNH - QUẢN LÝ (MANAGER) \n";
         cout << "=========================================\n";
         cout << "1. Xem sơ đồ nhà hàng hiện tại\n";
         cout << "2. Xem danh sách trạng thái đặt bàn\n";
@@ -1107,11 +1146,11 @@ void managerInterface(RestaurantManager* res, HRManager& hr) {
         cout << "5. Sửa đổi thông tin đặt lịch\n";
         cout << "6. Xem danh sách hồ sơ nhân viên\n";
         cout << "7. Thêm nhân viên mới vào biên chế\n";
-        cout << "8. Sa thải / Xóa nhân viên khỏi hệ thống\n";
-        cout << "9. Quản lý ca làm (Check-in) / Sửa lương\n";
-        cout << "10. Xem hòm thư góp ý (Feedback khách)\n";
-        cout << "11. Xuất file báo cáo lương tổng hợp (.txt)\n";
-        cout << "12. Thanh toán / Xuất hóa đơn cho bàn\n";
+        cout << "8. Sa thải nhân viên khỏi hệ thống\n";
+        cout << "9. Quản lý ca làm / Sửa lương nhân viên\n";
+        cout << "10. Xem hòm thư góp ý\n";
+        cout << "11. Xuất file báo cáo lương tổng hợp\n";
+        cout << "12. Xuất hóa đơn cho bàn\n";
         cout << "0. Đăng xuất tài khoản Quản lý\n";
         cout << "=========================================\n";
         cout << "Nhập lựa chọn của bạn: "; cin >> choice;
@@ -1130,7 +1169,7 @@ void managerInterface(RestaurantManager* res, HRManager& hr) {
             case 11: hr.exportPayroll(); break;
             case 12: res->checkoutTable(); break;
             case 0: cout << "=> Đang thoát tài khoản quản lý và đồng bộ file nhân sự...\n"; break;
-            default: cout << "Lựa chọn không hợp lệ!\n";
+            default: cout << "[Lỗi] Lựa chọn không hợp lệ!\n";
         }
         if(choice != 0) cout << "\n#######################################################\n";
     } while (choice != 0);
@@ -1140,13 +1179,13 @@ void employeeInterface(RestaurantManager* res) {
     int choice;
     do {
         cout << "\n=========================================\n";
-        cout << "        MENU NGHIỆP VỤ - NHÂN VIÊN (STAFF) \n";
+        cout << "    MENU NGHIỆP VỤ - NHÂN VIÊN (STAFF) \n";
         cout << "=========================================\n";
         cout << "1. Xem sơ đồ nhà hàng\n";
         cout << "2. Xem trạng thái tất cả các bàn\n";
         cout << "3. Hỗ trợ khách đặt bàn mới\n";
         cout << "4. Sửa đổi thông tin khách hàng đặt lịch\n";
-        cout << "5. Thanh toán / Xuất hóa đơn cho bàn\n";
+        cout << "5. Xuất hóa đơn cho bàn\n";
         cout << "6. Hủy đặt bàn theo yêu cầu khách\n";
         cout << "0. Đăng xuất tài khoản nhân viên\n";
         cout << "=========================================\n";
@@ -1160,7 +1199,7 @@ void employeeInterface(RestaurantManager* res) {
             case 5: res->checkoutTable(); break;
             case 6: res->deleteReservation(); break;
             case 0: cout << "=> Đang đăng xuất tài khoản nhân viên...\n"; break;
-            default: cout << "Lựa chọn không hợp lệ!\n";
+            default: cout << "[Lỗi] Lựa chọn không hợp lệ!\n";
         }
         if(choice != 0) cout << "\n#######################################################\n";
     } while (choice != 0);
@@ -1174,8 +1213,8 @@ void customerInterface(RestaurantManager* res) {
         cout << "=========================================\n";
         cout << "1. Xem sơ đồ vị trí bàn trống\n";
         cout << "2. Quét danh sách sức chứa các bàn\n";
-        cout << "3. Thực hiện Đặt bàn trực tuyến, chọn món trước và ngày giờ tới\n";
-        cout << "4. Yêu cầu hủy đặt bàn (Bảo mật SĐT)\n";
+        cout << "3. Thực hiện đặt bàn chọn món và thời gian đến\n";
+        cout << "4. Yêu cầu hủy đặt bàn\n";
         cout << "5. Gửi đánh giá dịch vụ & Feedback đóng góp\n";
         cout << "0. Quay lại màn hình chính Gateway\n";
         cout << "=========================================\n";
@@ -1188,7 +1227,7 @@ void customerInterface(RestaurantManager* res) {
             case 4: res->customerDeleteReservation(); break;
             case 5: sendFeedback(); break;
             case 0: cout << "=> Đang chuyển hướng về cổng Gateway nhà hàng...\n"; break;
-            default: cout << "Lựa chọn không hợp lệ!\n";
+            default: cout << "[Lỗi] Lựa chọn không hợp lệ!\n";
         }
         if(choice != 0) cout << "\n#######################################################\n";
     } while (choice != 0);
@@ -1220,10 +1259,10 @@ int main() {
             cout << "Yêu cầu nhập mã tài khoản quản lý (VD: NV01): "; cin >> token;
             string role = hrSystem.authenticate(token);
             if (role == "Manager") {
-                cout << "\n[Xác thực thành công] Xin chào quản lý cấp cao!\n";
+                cout << "\n[Xác thực thành công] Xin chào quản lý!\n";
                 managerInterface(bkRestaurant, hrSystem);
             } else {
-                cout << "\n[Truy cập bị từ chối] Mã định danh không đúng hoặc bạn không có quyền hạn Quản lý!\n";
+                cout << "\n[Truy cập bị từ chối] Mã định danh không đúng hoặc bạn không có quyền hạn quản lý!\n";
             }
         } 
         else if (accessRole == 2) {
@@ -1231,7 +1270,7 @@ int main() {
             cout << "Yêu cầu nhập mã tài khoản nhân viên (VD: NV02): "; cin >> token;
             string role = hrSystem.authenticate(token);
             if (role == "Staff") {
-                cout << "\n[Xác thực thành công] Đăng nhập tài khoản Nhân viên làm việc!\n";
+                cout << "\n[Xác thực thành công] Đăng nhập tài khoản nhân viên làm việc!\n";
                 employeeInterface(bkRestaurant);
             } else {
                 cout << "\n[Truy cập bị từ chối] Mã nhân viên không tồn tại trên hệ thống dữ liệu ca trực!\n";
